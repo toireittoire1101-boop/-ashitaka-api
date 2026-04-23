@@ -1,28 +1,59 @@
-const express = require('express');
-const cors = require('cors');
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const OpenAI = require("openai");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// 確認用
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 app.get("/", (req, res) => {
   res.send("アシタカAPI起動🔥");
 });
 
-// 会話API
-app.post("/chat", (req, res) => {
-  const { message } = req.body;
+app.post("/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
 
-  console.log("受け取った:", message);
+    if (!message) {
+      return res.status(400).json({
+        error: "message が必要です"
+      });
+    }
 
-  res.json({
-    reply: `アシタカ応答: ${message}`
-  });
+    const response = await client.responses.create({
+      model: "gpt-5-mini",
+      input: [
+        {
+          role: "system",
+          content: "あなたはアシタカです。やわらかく自然な日本語で返答してください。"
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ]
+    });
+
+    const reply = response.output_text;
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("chat error:", error);
+    res.status(500).json({
+      error: "サーバーエラー",
+      detail: error.message
+    });
+  }
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log("起動成功");
+  console.log(`起動成功: ${port}`);
 });
